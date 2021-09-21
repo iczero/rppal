@@ -33,25 +33,25 @@ use libc::{self, c_void, off_t, size_t, MAP_FAILED, MAP_SHARED, O_SYNC, PROT_REA
 use crate::gpio::{Error, Level, Mode, PullUpDown, Result};
 use crate::system::{DeviceInfo, SoC};
 
-const PATH_DEV_GPIOMEM: &str = "/dev/gpiomem";
-const PATH_DEV_MEM: &str = "/dev/mem";
+pub const PATH_DEV_GPIOMEM: &str = "/dev/gpiomem";
+pub const PATH_DEV_MEM: &str = "/dev/mem";
 // The BCM2835 has 41 32-bit registers related to the GPIO (datasheet @ 6.1).
 // The BCM2711 (RPi4) has 58 32-bit registers related to the GPIO.
-const GPIO_MEM_REGISTERS: usize = 58;
-const GPIO_MEM_SIZE: usize = GPIO_MEM_REGISTERS * std::mem::size_of::<u32>();
-const GPFSEL0: usize = 0x00;
-const GPSET0: usize = 0x1c / std::mem::size_of::<u32>();
-const GPCLR0: usize = 0x28 / std::mem::size_of::<u32>();
-const GPLEV0: usize = 0x34 / std::mem::size_of::<u32>();
-const GPPUD: usize = 0x94 / std::mem::size_of::<u32>();
-const GPPUDCLK0: usize = 0x98 / std::mem::size_of::<u32>();
+pub const GPIO_MEM_REGISTERS: usize = 58;
+pub const GPIO_MEM_SIZE: usize = GPIO_MEM_REGISTERS * std::mem::size_of::<u32>();
+pub const GPFSEL0: usize = 0x00;
+pub const GPSET0: usize = 0x1c / std::mem::size_of::<u32>();
+pub const GPCLR0: usize = 0x28 / std::mem::size_of::<u32>();
+pub const GPLEV0: usize = 0x34 / std::mem::size_of::<u32>();
+pub const GPPUD: usize = 0x94 / std::mem::size_of::<u32>();
+pub const GPPUDCLK0: usize = 0x98 / std::mem::size_of::<u32>();
 // Only available in BCM2711 (RPi4).
-const GPPUD_CNTRL_REG0: usize = 0xe4 / std::mem::size_of::<u32>();
+pub const GPPUD_CNTRL_REG0: usize = 0xe4 / std::mem::size_of::<u32>();
 
 pub struct GpioMem {
-    mem_ptr: *mut u32,
-    locks: [AtomicBool; GPIO_MEM_REGISTERS],
-    soc: SoC,
+    pub mem_ptr: *mut u32,
+    pub locks: [AtomicBool; GPIO_MEM_REGISTERS],
+    pub soc: SoC,
 }
 
 impl fmt::Debug for GpioMem {
@@ -100,7 +100,7 @@ impl GpioMem {
         })
     }
 
-    fn map_devgpiomem() -> Result<*mut u32> {
+    pub fn map_devgpiomem() -> Result<*mut u32> {
         // Open /dev/gpiomem with read/write/sync flags. This might fail if
         // /dev/gpiomem doesn't exist (< Raspbian Jessie), or /dev/gpiomem
         // doesn't have the appropriate permissions, or the current user is
@@ -130,7 +130,7 @@ impl GpioMem {
         Ok(gpiomem_ptr as *mut u32)
     }
 
-    fn map_devmem() -> Result<*mut u32> {
+    pub fn map_devmem() -> Result<*mut u32> {
         // Identify which SoC we're using, so we know what offset to start at
         let device_info = DeviceInfo::new().map_err(|_| Error::UnknownModel)?;
 
@@ -160,19 +160,19 @@ impl GpioMem {
     }
 
     #[inline(always)]
-    fn read(&self, offset: usize) -> u32 {
+    pub fn read(&self, offset: usize) -> u32 {
         unsafe { ptr::read_volatile(self.mem_ptr.add(offset)) }
     }
 
     #[inline(always)]
-    fn write(&self, offset: usize, value: u32) {
+    pub fn write(&self, offset: usize, value: u32) {
         unsafe {
             ptr::write_volatile(self.mem_ptr.add(offset), value);
         }
     }
 
     #[inline(always)]
-    pub(crate) fn set_high(&self, pin: u8) {
+    pub fn set_high(&self, pin: u8) {
         let offset = GPSET0 + pin as usize / 32;
         let shift = pin % 32;
 
@@ -180,7 +180,7 @@ impl GpioMem {
     }
 
     #[inline(always)]
-    pub(crate) fn set_low(&self, pin: u8) {
+    pub fn set_low(&self, pin: u8) {
         let offset = GPCLR0 + pin as usize / 32;
         let shift = pin % 32;
 
@@ -188,7 +188,7 @@ impl GpioMem {
     }
 
     #[inline(always)]
-    pub(crate) fn level(&self, pin: u8) -> Level {
+    pub fn level(&self, pin: u8) -> Level {
         let offset = GPLEV0 + pin as usize / 32;
         let shift = pin % 32;
         let reg_value = self.read(offset);
@@ -196,7 +196,7 @@ impl GpioMem {
         unsafe { std::mem::transmute((reg_value >> shift) as u8 & 0b1) }
     }
 
-    pub(crate) fn mode(&self, pin: u8) -> Mode {
+    pub fn mode(&self, pin: u8) -> Mode {
         let offset = GPFSEL0 + pin as usize / 10;
         let shift = (pin % 10) * 3;
         let reg_value = self.read(offset);
@@ -204,7 +204,7 @@ impl GpioMem {
         unsafe { std::mem::transmute((reg_value >> shift) as u8 & 0b111) }
     }
 
-    pub(crate) fn set_mode(&self, pin: u8, mode: Mode) {
+    pub fn set_mode(&self, pin: u8, mode: Mode) {
         let offset = GPFSEL0 + pin as usize / 10;
         let shift = (pin % 10) * 3;
 
@@ -226,7 +226,7 @@ impl GpioMem {
         self.locks[offset].store(false, Ordering::SeqCst);
     }
 
-    pub(crate) fn set_pullupdown(&self, pin: u8, pud: PullUpDown) {
+    pub fn set_pullupdown(&self, pin: u8, pud: PullUpDown) {
         // Offset for register.
         let offset: usize;
         // Bit shift for pin position within register value.

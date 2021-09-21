@@ -151,7 +151,7 @@ mod hal;
 mod hal_unproven;
 mod interrupt;
 mod ioctl;
-mod mem;
+pub mod mem;
 mod pin;
 mod soft_pwm;
 
@@ -334,11 +334,11 @@ impl fmt::Display for Trigger {
 
 // Store Gpio's state separately, so we can conveniently share it through
 // a cloned Arc.
-pub(crate) struct GpioState {
-    gpio_mem: mem::GpioMem,
-    cdev: std::fs::File,
-    sync_interrupts: Mutex<interrupt::EventLoop>,
-    pins_taken: [AtomicBool; pin::MAX],
+pub struct GpioState {
+    pub gpio_mem: mem::GpioMem,
+    pub cdev: std::fs::File,
+    pub sync_interrupts: Mutex<interrupt::EventLoop>,
+    pub pins_taken: [AtomicBool; pin::MAX],
 }
 
 impl fmt::Debug for GpioState {
@@ -362,7 +362,7 @@ lazy_static! {
 /// Provides access to the Raspberry Pi's GPIO peripheral.
 #[derive(Clone, Debug)]
 pub struct Gpio {
-    inner: Arc<GpioState>,
+    pub inner: Arc<GpioState>,
 }
 
 impl Gpio {
